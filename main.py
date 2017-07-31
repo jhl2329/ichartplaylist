@@ -7,14 +7,9 @@ def main():
 
 	soup = BeautifulSoup(html, 'html.parser')
 
-	# # print(soup.prettify())
-	# rankingPage = soup.find(rel="amphtml")
-	# print(rankingPage.get('href'))
-
-	# html = urlopen(rankingPage.get('href'))
-	# soup = BeautifulSoup(html, 'html.parser')
-
-	print(soup.prettify())
+	divList = soup.find_all('div', {"class": "ichart_score2_song1"})
+	for song in divList:
+		print(song)
 
 
 if __name__ == '__main__':
