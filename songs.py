@@ -1,7 +1,7 @@
 from urllib.request import urlopen
 from bs4 import BeautifulSoup
 
-def getSongList():
+def get_song_list(*args, **kwargs):
 	"""
 	Parses through DOM of instiz song list and returns a list of songs
 
