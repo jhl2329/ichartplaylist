@@ -3,6 +3,7 @@
 import httplib2
 import os
 import sys
+import time
 
 from songs import get_song_list
 
@@ -47,13 +48,43 @@ def get_authenticated_service(args):
 	return build(API_SERVICE_NAME, API_VERSION,
 		http=credentials.authorize(httplib2.Http()))
 
-def print_results(results):
-	print(results)
-
-args = argparser.parse_args()
-service = get_authenticated_service(args)
-
-### END BOILERPLATE CODE
+# Build a resource based on a list of properties given as key-value pairs.
+# Leave properties with empty values out of the inserted resource.
+def build_resource(properties):
+  resource = {}
+  for p in properties:
+    # Given a key like "snippet.title", split into "snippet" and "title", where
+    # "snippet" will be an object and "title" will be a property in that object.
+    prop_array = p.split('.')
+    ref = resource
+    for pa in range(0, len(prop_array)):
+      is_array = False
+      key = prop_array[pa]
+      # Convert a name like "snippet.tags[]" to snippet.tags, but handle
+      # the value as an array.
+      if key[-2:] == '[]':
+        key = key[0:len(key)-2:]
+        is_array = True
+      if pa == (len(prop_array) - 1):
+        # Leave properties without values out of inserted resource.
+        if properties[p]:
+          if is_array:
+            ref[key] = properties[p].split(',')
+          else:
+            ref[key] = properties[p]
+      elif key not in ref:
+        # For example, the property is "snippet.title", but the resource does
+        # not yet have a "snippet" object. Create the snippet object here.
+        # Setting "ref = ref[key]" means that in the next time through the
+        # "for pa in range ..." loop, we will be setting a property in the
+        # resource's "snippet" object.
+        ref[key] = {}
+        ref = ref[key]
+      else:
+        # For example, the property is "snippet.description", and the resource
+        # already has a "snippet" object.
+        ref = ref[key]
+  return resource
 
 # Remove keyword arguments that are not set
 def remove_empty_kwargs(**kwargs):
@@ -63,6 +94,14 @@ def remove_empty_kwargs(**kwargs):
 			if value:
 				good_kwargs[key] = value
 	return good_kwargs
+
+def print_results(results):
+	print(results)
+
+args = argparser.parse_args()
+service = get_authenticated_service(args)
+
+### END BOILERPLATE CODE
 
 def get_song_id(service, **kwargs):
 	"""
@@ -78,6 +117,21 @@ def get_song_id(service, **kwargs):
 	results = service.search().list(**kwargs).execute()
 	return (((results['items'])[0])['id'])['videoId']
 
-# search_by_keyword(service, part='snippet', maxResults=25, q='query', type='')
-for song in get_song_list():
-	get_song_id(service, part='snippet', maxResults=1, q=str(song), type='')
+def create_playlist(properties, **kwargs):
+	resource = build_resource(properties)
+	kwargs = remove_empty_kwargs(**kwargs)
+	results = service.playlists().insert(body=resource, **kwargs).execute()
+
+	print_results(results)
+
+# for song in get_song_list():
+# 	get_song_id(service, part='snippet', maxResults=1, q=str(song), type='')
+title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
+description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
+privacyStatus = 'unlisted'
+create_playlist(
+	{'snippet.title':title,
+	 'snippet.description':description, 
+	 'status.privacyStatus':privacyStatus},
+	 part='snippet,status',
+	 onBehalfOfContentOwner='')
