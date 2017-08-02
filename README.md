@@ -3,4 +3,7 @@ This Python script parses a Korean music ranking chart (ichart.instiz.net/real) 
 
 Run through 'python3 youtube.py'
 
+Example of playlist:
+https://www.youtube.com/playlist?list=PL9r5SfKA2Ne6Wf0iwPNrSqDuAbQmRa4SV
+
 WIP
