@@ -114,9 +114,10 @@ def get_song_id(service, **kwargs):
 	"""
 	kwargs = remove_empty_kwargs(**kwargs)
 	results = service.search().list(**kwargs).execute()
-	result_dic = results['items'][0]
-	if result_dic and 'videoId' in result_dic['id']:
-		return result_dic['id']['videoId']
+	if results['items']:
+		result_dic = results['items'][0]
+		if result_dic and 'videoId' in result_dic['id']:
+			return result_dic['id']['videoId']
 	return None
 
 def create_playlist(properties, **kwargs):
@@ -179,22 +180,3 @@ def main():
 
 if __name__ == '__main__':
 	main()
-
-
-# get sond id
-# for song in get_song_list():
-# 	get_song_id(service, part='snippet', maxResults=1, q=str(song), type='')
-
-# create playlist
-# title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
-# description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
-# privacyStatus = 'unlisted'
-# playlistId = create_playlist(
-# 	{'snippet.title':title,
-# 	 'snippet.description':description, 
-# 	 'status.privacyStatus':privacyStatus},
-# 	 part='snippet,status',
-# 	 onBehalfOfContentOwner='')
-# print_results(playlistId)
-
-# insert items into playlist

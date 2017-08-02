@@ -12,15 +12,23 @@ def get_song_list(*args, **kwargs):
 
 	soup = BeautifulSoup(html, 'html.parser')
 
-	songList = []
+	song_list = []
 	divList = soup.find_all('div', class_="ichart_score2_song1")
 	for song in divList:
-		songList.append(song.string)
-	return songList
+		song_list.append(song.string)
+
+	artist_list = []
+	div_list = soup.find_all('div', class_="ichart_score2_artist1")
+	for artist in div_list:
+		artist_list.append(artist.string)
+
+	# Combine two lists together so that each element will have song title + artist	
+	new_list = [a + ' ' + b for a, b in zip(song_list, artist_list)]
+	return new_list
 
 def main():
-	songList = getSongList()
-	print(songList)
+	song_list = get_song_list()
+	print(song_list)
 
 
 if __name__ == '__main__':
