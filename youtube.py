@@ -110,12 +110,14 @@ def get_song_id(service, **kwargs):
 	the first result is the most relevant song.
 
 	:param: dict of part, maxResults, q, type where q is title of song
-	:return: String object representing a videoId of q
+	:return: String object representing a single videoId of q. Returns none if no videoId
 	"""
-	videoIds = []
 	kwargs = remove_empty_kwargs(**kwargs)
 	results = service.search().list(**kwargs).execute()
-	return (((results['items'])[0])['id'])['videoId']
+	result_dic = results['items'][0]
+	if result_dic and 'videoId' in result_dic['id']:
+		return result_dic['id']['videoId']
+	return None
 
 def create_playlist(properties, **kwargs):
 	"""
@@ -159,7 +161,9 @@ def main():
 	# Convert songs to a song's videoId
 	song_video_id_list = []
 	for song in get_song_list():
-		song_video_id_list.append(get_song_id(service,part='snippet',maxResults=1,q=str(song),type=''))
+		song_video_id = get_song_id(service,part='snippet',maxResults=1,q=str(song),type='')
+		if song_video_id is not None:
+			song_video_id_list.append(song_video_id)
 
 	# Insert each song into playlist
 	for video_id in song_video_id_list:
@@ -171,7 +175,7 @@ def main():
 			 part='snippet',
 			 onBehalfOfContentOwner='')
 	# Return youtube playlist link
-	return youtube_link(playlist_id)
+	print(youtube_link(playlist_id))
 
 if __name__ == '__main__':
 	main()
