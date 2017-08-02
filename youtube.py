@@ -118,20 +118,79 @@ def get_song_id(service, **kwargs):
 	return (((results['items'])[0])['id'])['videoId']
 
 def create_playlist(properties, **kwargs):
+	"""
+	Create a playlist of title, description and privacyStatus and returns 
+	the created playlistId for insertion.
+
+	:param: dict of title, description and privacy status
+	:return: String object representing newly created playlists' playlistId
+	"""
 	resource = build_resource(properties)
 	kwargs = remove_empty_kwargs(**kwargs)
 	results = service.playlists().insert(body=resource, **kwargs).execute()
+	return results['id']
 
-	print_results(results)
+def playlist_insert(properties, **kwargs):
+	"""
+	Inserts a given song s into a playlist p
 
+	:param: dict of playlistId that represents playlist p, videoId of song to insert
+	"""
+	resource = build_resource(properties)
+	kwargs = remove_empty_kwargs(**kwargs)
+	results = service.playlistItems().insert(body=resource, **kwargs).execute()
+
+def youtube_link(playlist_id):
+	return 'https://www.youtube.com/playlist?list='+playlist_id
+
+def main():
+	# Create playlist for insertion
+	title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
+	description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
+	privacy_status = 'unlisted'
+
+	playlist_id = create_playlist(
+		{'snippet.title':title,
+		 'snippet.description':description,
+		 'status.privacyStatus':privacy_status},
+		 part='snippet,status',
+		 onBehalfOfContentOwner='')
+
+	# Convert songs to a song's videoId
+	song_video_id_list = []
+	for song in get_song_list():
+		song_video_id_list.append(get_song_id(service,part='snippet',maxResults=1,q=str(song),type=''))
+
+	# Insert each song into playlist
+	for video_id in song_video_id_list:
+		playlist_insert(
+			{'snippet.playlistId':playlist_id,
+			 'snippet.resourceId.kind':'youtube#video',
+			 'snippet.resourceId.videoId':video_id,
+			 'snippet.position':''},
+			 part='snippet',
+			 onBehalfOfContentOwner='')
+	# Return youtube playlist link
+	return youtube_link(playlist_id)
+
+if __name__ == '__main__':
+	main()
+
+
+# get sond id
 # for song in get_song_list():
 # 	get_song_id(service, part='snippet', maxResults=1, q=str(song), type='')
-title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
-description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
-privacyStatus = 'unlisted'
-create_playlist(
-	{'snippet.title':title,
-	 'snippet.description':description, 
-	 'status.privacyStatus':privacyStatus},
-	 part='snippet,status',
-	 onBehalfOfContentOwner='')
+
+# create playlist
+# title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
+# description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
+# privacyStatus = 'unlisted'
+# playlistId = create_playlist(
+# 	{'snippet.title':title,
+# 	 'snippet.description':description, 
+# 	 'status.privacyStatus':privacyStatus},
+# 	 part='snippet,status',
+# 	 onBehalfOfContentOwner='')
+# print_results(playlistId)
+
+# insert items into playlist
