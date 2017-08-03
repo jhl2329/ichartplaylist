@@ -3,9 +3,12 @@
 import httplib2
 import os
 import sys
+import datetime
 import time
 
 from songs import get_song_list
+
+from isodate import parse_duration
 
 from apiclient.discovery import build
 from apiclient.errors import HttpError
@@ -103,21 +106,59 @@ service = get_authenticated_service(args)
 
 ### END BOILERPLATE CODE
 
+def videos_list_by_id(service, **kwargs):
+	"""
+	Given a videoId, get the video object and return
+
+	:param: String representing video id of video desired 
+	:return: dict that contains video info
+	"""
+	kwargs = remove_empty_kwargs(**kwargs)
+	results = service.videos().list(**kwargs).execute()
+
+	return results['items'][0]
+
+def best_video(video_list):
+	"""
+	Goes through video list and returns best video based on different characteristics. For example, time.
+
+	:param: List of video ids
+	:return: videoId of first video greater than 2 mins (120 seconds)
+
+	"""
+	for video_id in video_list:
+		# Get the actual video object
+		video = videos_list_by_id(service,
+			part='snippet,contentDetails,statistics',
+			id=video_id)
+		# For now, return first video that is greater than 2 minutes
+		duration = video['contentDetails']['duration']
+		if parse_duration(duration) > datetime.timedelta(seconds=120):
+			return video_id
+
+	# Otherwise, just return the most relevant search result which is
+	# the first video in the video_list
+	return video_list[0] 
+
+
+
 def get_song_id(service, **kwargs):
 	"""
 	Given a song name, returns most relevant videoId for song name.
 	Since song name is pulled directly from the list that has the exact song name
 	the first result is the most relevant song.
 
-	:param: dict of part, maxResults, q, type where q is title of song
-	:return: String object representing a single videoId of q. Returns none if no videoId
+	:param: dict of part, maxResults = # of search results, q, type where q is title of song
+	:return: List of maxResults size that contain search results for query q
 	"""
 	kwargs = remove_empty_kwargs(**kwargs)
 	results = service.search().list(**kwargs).execute()
+	video_id_list = []
 	if results['items']:
-		result_dic = results['items'][0]
-		if result_dic and 'videoId' in result_dic['id']:
-			return result_dic['id']['videoId']
+		for item in results['items']:
+			if item and 'videoId' in item['id']:
+				video_id_list.append(item['id']['videoId'])
+		return video_id_list
 	return None
 
 def create_playlist(properties, **kwargs):
@@ -150,7 +191,7 @@ def main():
 	# Create playlist for insertion
 	title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
 	description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
-	privacy_status = 'unlisted'
+	privacy_status = 'public'
 
 	playlist_id = create_playlist(
 		{'snippet.title':title,
@@ -162,9 +203,9 @@ def main():
 	# Convert songs to a song's videoId
 	song_video_id_list = []
 	for song in get_song_list():
-		song_video_id = get_song_id(service,part='snippet',maxResults=1,q=str(song),type='')
-		if song_video_id is not None:
-			song_video_id_list.append(song_video_id)
+		song_video_ids = get_song_id(service,part='snippet',maxResults=5,q=str(song),type='')
+		if song_video_ids is not None:
+			song_video_id_list.append(song_video_ids)
 
 	# Insert each song into playlist
 	for video_id in song_video_id_list:
