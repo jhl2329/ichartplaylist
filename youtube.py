@@ -182,7 +182,11 @@ def playlist_insert(properties, **kwargs):
 	"""
 	resource = build_resource(properties)
 	kwargs = remove_empty_kwargs(**kwargs)
-	results = service.playlistItems().insert(body=resource, **kwargs).execute()
+	try:
+		results = service.playlistItems().insert(body=resource, **kwargs).execute()
+	except:
+		# If video is not found, ignore and just pass along.
+		pass 
 
 def youtube_link(playlist_id):
 	return 'https://www.youtube.com/playlist?list='+playlist_id
