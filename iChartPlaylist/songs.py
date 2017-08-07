@@ -15,6 +15,7 @@ def get_song_list(*args, **kwargs):
 	song_list = []
 	divList = soup.find_all('div', class_="ichart_score2_song1")
 	for song in divList:
+		print('Found song: %s\n', song)
 		song_list.append(song.string)
 
 	artist_list = []
