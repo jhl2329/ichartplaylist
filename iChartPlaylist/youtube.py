@@ -5,6 +5,7 @@ import os
 import sys
 import datetime
 import time
+import argparse
 
 from songs import get_song_list
 
@@ -12,10 +13,11 @@ from isodate import parse_duration
 
 from apiclient.discovery import build
 from apiclient.errors import HttpError
-from oauth2client.client import flow_from_clientsecrets
+from oauth2client.client import OAuth2WebServerFlow
 from oauth2client.file import Storage
 from oauth2client.tools import argparser, run_flow
 from oauth2client.contrib import gce
+from oauth2client import tools 
 
 # The CLIENT_SECRETS_FILE variable specifies the name of a file that contains
 # the OAuth 2.0 information for this application, including its client_id and
@@ -34,22 +36,28 @@ MISSING_CLIENT_SECRETS_MESSAGE = "WARNING: Please configure OAuth 2.0"
 
 # Authorize the request and store authorization credentials.
 def get_authenticated_service(args):
-	flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE, scope=YOUTUBE_READ_WRITE_SSL_SCOPE,
-		message=MISSING_CLIENT_SECRETS_MESSAGE)
+    # flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE, scope=YOUTUBE_READ_WRITE_SSL_SCOPE,
+    #     message=MISSING_CLIENT_SECRETS_MESSAGE)
+    flow = OAuth2WebServerFlow( client_id='878722210002-17ja3gusmjgb74eikr2996o2n151k7g9.apps.googleusercontent.com',
+                                client_secret='QKoE_wXml_Ti8Xtjvse-Xptg',
+                                scope=YOUTUBE_READ_WRITE_SSL_SCOPE,
+                                redirect_uri='http://www.google.com/')
 
-	storage = Storage("%s-oauth2.json" % sys.argv[0])
-	credentials = storage.get()
+    storage = Storage("%s-oauth2.json" % sys.argv[0])
+    credentials = storage.get()
+    
+    parser = argparse.ArgumentParser(parents=[tools.argparser])
+    flags = parser.parse_args()
+    # credentials = gce.AppAssertionCredentials(
+    #   scope='https://www.googleapis.com/auth/devstorage.read_write')
 
-	# credentials = gce.AppAssertionCredentials(
-	# 	scope='https://www.googleapis.com/auth/devstorage.read_write')
+    if credentials is None or credentials.invalid:
+        credentials = run_flow(flow, storage, flags)
 
-	if credentials is None or credentials.invalid:
-		credentials = run_flow(flow, storage, args)
-
-		# Trusted testers can download this discovery document from the developers page
-		# and it should be in the same directory with the code.
-	return build(API_SERVICE_NAME, API_VERSION,
-		http=credentials.authorize(httplib2.Http()))
+        # Trusted testers can download this discovery document from the developers page
+        # and it should be in the same directory with the code.
+    return build(API_SERVICE_NAME, API_VERSION,
+        http=credentials.authorize(httplib2.Http()))
 
 # Build a resource based on a list of properties given as key-value pairs.
 # Leave properties with empty values out of the inserted resource.
@@ -91,15 +99,15 @@ def build_resource(properties):
 
 # Remove keyword arguments that are not set
 def remove_empty_kwargs(**kwargs):
-	good_kwargs = {}
-	if kwargs is not None:
-		for key, value in kwargs.items():
-			if value:
-				good_kwargs[key] = value
-	return good_kwargs
+    good_kwargs = {}
+    if kwargs is not None:
+        for key, value in kwargs.items():
+            if value:
+                good_kwargs[key] = value
+    return good_kwargs
 
 def print_results(results):
-	print(results)
+    print(results)
 
 args = argparser.parse_args()
 service = get_authenticated_service(args)
@@ -107,121 +115,121 @@ service = get_authenticated_service(args)
 ### END BOILERPLATE CODE
 
 def videos_list_by_id(service, **kwargs):
-	"""
-	Given a videoId, get the video object and return
+    """
+    Given a videoId, get the video object and return
 
-	:param: String representing video id of video desired 
-	:return: dict that contains video info
-	"""
-	kwargs = remove_empty_kwargs(**kwargs)
-	results = service.videos().list(**kwargs).execute()
+    :param: String representing video id of video desired 
+    :return: dict that contains video info
+    """
+    kwargs = remove_empty_kwargs(**kwargs)
+    results = service.videos().list(**kwargs).execute()
 
-	return results['items'][0]
+    return results['items'][0]
 
 def best_video(video_list):
-	"""
-	Goes through video list and returns best video based on different characteristics. For example, time.
+    """
+    Goes through video list and returns best video based on different characteristics. For example, time.
 
-	:param: List of video ids
-	:return: videoId of first video greater than 2 mins (120 seconds)
+    :param: List of video ids
+    :return: videoId of first video greater than 2 mins (120 seconds)
 
-	"""
-	for video_id in video_list:
-		# Get the actual video object
-		video = videos_list_by_id(service,
-			part='snippet,contentDetails,statistics',
-			id=video_id)
-		# For now, return first video that is greater than 2 minutes
-		duration = video['contentDetails']['duration']
-		if parse_duration(duration) > datetime.timedelta(seconds=120):
-			return video_id
+    """
+    for video_id in video_list:
+        # Get the actual video object
+        video = videos_list_by_id(service,
+            part='snippet,contentDetails,statistics',
+            id=video_id)
+        # For now, return first video that is greater than 2 minutes
+        duration = video['contentDetails']['duration']
+        if parse_duration(duration) > datetime.timedelta(seconds=120):
+            return video_id
 
-	# Otherwise, just return the most relevant search result which is
-	# the first video in the video_list
-	return video_list[0] 
+    # Otherwise, just return the most relevant search result which is
+    # the first video in the video_list
+    return video_list[0] 
 
 
 
 def get_song_id(service, **kwargs):
-	"""
-	Given a song name, returns most relevant videoId for song name.
-	Since song name is pulled directly from the list that has the exact song name
-	the first result is the most relevant song.
+    """
+    Given a song name, returns most relevant videoId for song name.
+    Since song name is pulled directly from the list that has the exact song name
+    the first result is the most relevant song.
 
-	:param: dict of part, maxResults = # of search results, q, type where q is title of song
-	:return: List of maxResults size that contain search results for query q
-	"""
-	kwargs = remove_empty_kwargs(**kwargs)
-	results = service.search().list(**kwargs).execute()
-	video_id_list = []
-	if results['items']:
-		for item in results['items']:
-			if item and 'videoId' in item['id']:
-				video_id_list.append(item['id']['videoId'])
-		return video_id_list
-	return None
+    :param: dict of part, maxResults = # of search results, q, type where q is title of song
+    :return: List of maxResults size that contain search results for query q
+    """
+    kwargs = remove_empty_kwargs(**kwargs)
+    results = service.search().list(**kwargs).execute()
+    video_id_list = []
+    if results['items']:
+        for item in results['items']:
+            if item and 'videoId' in item['id']:
+                video_id_list.append(item['id']['videoId'])
+        return video_id_list
+    return None
 
 def create_playlist(properties, **kwargs):
-	"""
-	Create a playlist of title, description and privacyStatus and returns 
-	the created playlistId for insertion.
+    """
+    Create a playlist of title, description and privacyStatus and returns 
+    the created playlistId for insertion.
 
-	:param: dict of title, description and privacy status
-	:return: String object representing newly created playlists' playlistId
-	"""
-	resource = build_resource(properties)
-	kwargs = remove_empty_kwargs(**kwargs)
-	results = service.playlists().insert(body=resource, **kwargs).execute()
-	return results['id']
+    :param: dict of title, description and privacy status
+    :return: String object representing newly created playlists' playlistId
+    """
+    resource = build_resource(properties)
+    kwargs = remove_empty_kwargs(**kwargs)
+    results = service.playlists().insert(body=resource, **kwargs).execute()
+    return results['id']
 
 def playlist_insert(properties, **kwargs):
-	"""
-	Inserts a given song s into a playlist p
+    """
+    Inserts a given song s into a playlist p
 
-	:param: dict of playlistId that represents playlist p, videoId of song to insert
-	"""
-	resource = build_resource(properties)
-	kwargs = remove_empty_kwargs(**kwargs)
-	try:
-		results = service.playlistItems().insert(body=resource, **kwargs).execute()
-	except:
-		# If video is not found, ignore and just pass along.
-		pass 
+    :param: dict of playlistId that represents playlist p, videoId of song to insert
+    """
+    resource = build_resource(properties)
+    kwargs = remove_empty_kwargs(**kwargs)
+    try:
+        results = service.playlistItems().insert(body=resource, **kwargs).execute()
+    except:
+        # If video is not found, ignore and just pass along.
+        pass 
 
 def youtube_link(playlist_id):
-	return 'https://www.youtube.com/playlist?list='+playlist_id
+    return 'https://www.youtube.com/playlist?list='+playlist_id
 
 def main():
-	# Create playlist for insertion
-	title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
-	description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
-	privacy_status = 'public'
+    # Create playlist for insertion
+    title = 'Instiz Chart ' + time.strftime("%m/%d/%Y")
+    description = 'Instiz Chart ranking of songs for ' + time.strftime("%m/%d/%Y")
+    privacy_status = 'public'
 
-	playlist_id = create_playlist(
-		{'snippet.title':title,
-		 'snippet.description':description,
-		 'status.privacyStatus':privacy_status},
-		 part='snippet,status',
-		 onBehalfOfContentOwner='')
+    playlist_id = create_playlist(
+        {'snippet.title':title,
+         'snippet.description':description,
+         'status.privacyStatus':privacy_status},
+         part='snippet,status',
+         onBehalfOfContentOwner='')
 
-	# Convert songs to a song's videoId
-	song_video_id_list = []
-	for song in get_song_list():
-		song_video_ids = get_song_id(service,part='snippet',maxResults=5,q=str(song),type='')
-		if song_video_ids is not None:
-			song_video_id_list.append(song_video_ids)
+    # Convert songs to a song's videoId
+    song_video_id_list = []
+    for song in get_song_list():
+        song_video_ids = get_song_id(service,part='snippet',maxResults=5,q=str(song),type='')
+        if song_video_ids is not None:
+            song_video_id_list.append(song_video_ids)
 
-	# Insert each song into playlist
-	for video_id in song_video_id_list:
-		playlist_insert(
-			{'snippet.playlistId':playlist_id,
-			 'snippet.resourceId.kind':'youtube#video',
-			 'snippet.resourceId.videoId':video_id,
-			 'snippet.position':''},
-			 part='snippet',
-			 onBehalfOfContentOwner='')
-	# Return youtube playlist link
-	print(youtube_link(playlist_id))
+    # Insert each song into playlist
+    for video_id in song_video_id_list:
+        playlist_insert(
+            {'snippet.playlistId':playlist_id,
+             'snippet.resourceId.kind':'youtube#video',
+             'snippet.resourceId.videoId':video_id,
+             'snippet.position':''},
+             part='snippet',
+             onBehalfOfContentOwner='')
+    # Return youtube playlist link
+    print(youtube_link(playlist_id))
 
 if __name__ == '__main__':
-	main()
+    main()
