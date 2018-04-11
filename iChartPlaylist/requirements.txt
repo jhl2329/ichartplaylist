@@ -2,3 +2,5 @@ httplib2
 bs4
 isodate
 google-api-python-client
+requests
+
