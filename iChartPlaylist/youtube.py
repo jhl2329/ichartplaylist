@@ -19,6 +19,10 @@ from oauth2client.tools import argparser, run_flow
 from oauth2client.contrib import gce
 from oauth2client import tools 
 
+import google_auth_oauthlib.flow
+import googleapiclient.discovery
+import googleapiclient.errors
+
 # The CLIENT_SECRETS_FILE variable specifies the name of a file that contains
 # the OAuth 2.0 information for this application, including its client_id and
 # client_secret.
@@ -26,7 +30,7 @@ CLIENT_SECRETS_FILE = "client_secrets.json"
 
 # This OAuth 2.0 access scope allows for full read/write access to the
 # authenticated user's account and requires requests to use an SSL connection.
-YOUTUBE_READ_WRITE_SSL_SCOPE = "https://www.googleapis.com/auth/youtube.force-ssl"
+SCOPES = ["https://www.googleapis.com/auth/youtube.force-ssl"]
 API_SERVICE_NAME = "youtube"
 API_VERSION = "v3"
 
@@ -36,28 +40,11 @@ MISSING_CLIENT_SECRETS_MESSAGE = "WARNING: Please configure OAuth 2.0"
 
 # Authorize the request and store authorization credentials.
 def get_authenticated_service(args):
-    # flow = flow_from_clientsecrets(CLIENT_SECRETS_FILE, scope=YOUTUBE_READ_WRITE_SSL_SCOPE,
-    #     message=MISSING_CLIENT_SECRETS_MESSAGE)
-    flow = OAuth2WebServerFlow( client_id='878722210002-17ja3gusmjgb74eikr2996o2n151k7g9.apps.googleusercontent.com',
-                                client_secret='QKoE_wXml_Ti8Xtjvse-Xptg',
-                                scope=YOUTUBE_READ_WRITE_SSL_SCOPE,
-                                redirect_uri='http://www.google.com/')
-
-    storage = Storage("%s-oauth2.json" % sys.argv[0])
-    credentials = storage.get()
-    
-    parser = argparse.ArgumentParser(parents=[tools.argparser])
-    flags = parser.parse_args()
-    # credentials = gce.AppAssertionCredentials(
-    #   scope='https://www.googleapis.com/auth/devstorage.read_write')
-
-    if credentials is None or credentials.invalid:
-        credentials = run_flow(flow, storage, flags)
-
-        # Trusted testers can download this discovery document from the developers page
-        # and it should be in the same directory with the code.
-    return build(API_SERVICE_NAME, API_VERSION,
-        http=credentials.authorize(httplib2.Http()))
+    flow = google_auth_oauthlib.flow.InstalledAppFlow.from_client_secrets_file(
+        CLIENT_SECRETS_FILE, SCOPES)
+    credentials = flow.run_console()
+    return googleapiclient.discovery.build(
+        API_SERVICE_NAME, API_VERSION, credentials=credentials)
 
 # Build a resource based on a list of properties given as key-value pairs.
 # Leave properties with empty values out of the inserted resource.
